@@ -15,7 +15,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-js-deobfuscator = "0.1.0"
+js-deobfuscator = "0.1.1"
 ```
 
 ## Quick Start
