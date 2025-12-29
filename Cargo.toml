@@ -1,0 +1,84 @@
+[package]
+name = "js-deobfuscator"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92.0"
+authors = ["GnU-Chan <gnusocute@gmail.com>"]
+license = "Apache-2.0"
+description = "A high-performance JavaScript deobfuscator built on the oxc Rust AST library"
+repository = "https://github.com/Dark-Captcha/JS-Deobfuscator"
+readme = "README.md"
+keywords = ["javascript", "deobfuscator", "ast", "oxc", "security"]
+categories = [
+    "development-tools",
+    "parsing",
+    "compilers",
+    "command-line-utilities",
+    "web-programming",
+]
+publish = true
+include = ["Cargo.toml", "LICENSE", "README.md", "src/**/*.rs"]
+
+[dependencies]
+# AST & Parsing
+oxc = { version = "0.106.0", features = ["full"] }
+oxc_traverse = "0.106.0"
+
+# JavaScript Evaluation (V8 Sandbox)
+deno_core = "0.376.0"
+deno_error = "0.7.3"
+
+# Serialization
+serde_json = "1.0.148"
+
+# Error Handling
+thiserror = "2.0.17"
+anyhow = "1.0.100"
+
+# Logging
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+
+# CLI
+clap = { version = "4.5.53", features = ["derive"] }
+
+# Data Structures & Hashing
+rustc-hash = "2.1.1"
+
+# Utilities
+base64 = "0.22.1"
+regex = "1.12.2"
+urlencoding = "2.1.3"
+
+[dev-dependencies]
+# Testing
+proptest = "1.9.0"
+
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"
+strip = "none"
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = "unwind"
+incremental = true
+codegen-units = 256
+
+[profile.release]
+opt-level = 3
+debug = false
+split-debuginfo = "off"
+strip = "symbols"
+debug-assertions = false
+overflow-checks = false
+lto = "fat"
+panic = "abort"
+incremental = false
+codegen-units = 1
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+strip = "none"
