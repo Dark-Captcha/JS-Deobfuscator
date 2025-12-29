@@ -52,71 +52,111 @@ impl<'a> Traverse<'a, ()> for ShufflerDetector {
             return;
         };
 
-        // Unwrap unary prefix (!, +, -, ~, void)
-        let call = match &expr_stmt.expression {
-            Expression::UnaryExpression(u) => {
-                if let Expression::CallExpression(c) = &u.argument {
-                    c.as_ref()
-                } else {
-                    return;
-                }
-            }
-            Expression::CallExpression(c) => c.as_ref(),
-            _ => return,
-        };
+        // Collect all IIFE calls from the expression
+        let mut calls = Vec::new();
+        Self::collect_iife_calls(&expr_stmt.expression, &mut calls);
 
-        // Try to detect shuffler
-        let Some(info) = detect_shuffler_call(call, ctx.scoping()) else {
+        if calls.is_empty() {
             return;
-        };
+        }
 
-        let id = self.counter;
-        self.counter += 1;
-        self.results.insert(id, info);
+        let mut any_detected = false;
+        for call in calls {
+            if let Some(info) = Self::detect_shuffler_call(call, ctx.scoping()) {
+                let id = self.counter;
+                self.counter += 1;
+                self.results.insert(id, info);
+                any_detected = true;
+            }
+        }
 
-        // Remove the statement
-        *stmt = ctx.ast.statement_empty(SPAN);
+        // Remove the statement if any shuffler was detected
+        if any_detected {
+            *stmt = ctx.ast.statement_empty(SPAN);
+        }
     }
 }
 
-/// Detect shuffler IIFE pattern from a call expression.
-fn detect_shuffler_call(call: &CallExpression, scoping: &Scoping) -> Option<ShufflerInfo> {
-    // Callee must be FunctionExpression (possibly parenthesized)
-    let callee = match &call.callee {
-        Expression::ParenthesizedExpression(p) => &p.expression,
-        e => e,
-    };
-    let Expression::FunctionExpression(func) = callee else {
-        return None;
-    };
-
-    // Get array symbol from first argument
-    let Argument::Identifier(array_id) = call.arguments.first()? else {
-        return None;
-    };
-    let array_symbol_id = get_reference_symbol(scoping, array_id)?;
-
-    // Validate body and extract accessor symbol
-    let body = func.body.as_ref()?;
-    let mut validator = ShufflerValidator::new(scoping);
-    validator.visit_function_body(body);
-
-    // Validation: push/shift >= 2, parseInt >= 2
-    if validator.push_shift_count < 2 {
-        return None;
+impl ShufflerDetector {
+    /// Recursively collect IIFE CallExpressions.
+    /// Handles: !(fn)(), (fn)(), (fn1)(), (fn2)(), etc.
+    fn collect_iife_calls<'a>(expr: &'a Expression<'a>, calls: &mut Vec<&'a CallExpression<'a>>) {
+        match expr {
+            // !(function(){})() or +(function(){})() etc.
+            Expression::UnaryExpression(u) => {
+                if let Expression::CallExpression(c) = &u.argument
+                    && Self::is_iife(c) {
+                        calls.push(c.as_ref());
+                    }
+            }
+            // (function(){})()
+            Expression::CallExpression(c) => {
+                if Self::is_iife(c) {
+                    calls.push(c.as_ref());
+                }
+            }
+            // (fn1)(), (fn2)() — SequenceExpression
+            Expression::SequenceExpression(seq) => {
+                for sub_expr in &seq.expressions {
+                    Self::collect_iife_calls(sub_expr, calls);
+                }
+            }
+            // ((function(){}))() — ParenthesizedExpression
+            Expression::ParenthesizedExpression(p) => {
+                Self::collect_iife_calls(&p.expression, calls);
+            }
+            _ => {}
+        }
     }
-    if validator.parse_int_count < 2 {
-        return None;
+
+    /// Check if a CallExpression is an IIFE (callee is FunctionExpression)
+    fn is_iife(call: &CallExpression) -> bool {
+        let callee = match &call.callee {
+            Expression::ParenthesizedExpression(p) => &p.expression,
+            e => e,
+        };
+        matches!(callee, Expression::FunctionExpression(_))
     }
 
-    // Must have found accessor symbol
-    let accessor_symbol_id = validator.accessor_symbol_id?;
+    /// Detect shuffler IIFE pattern from a call expression.
+    fn detect_shuffler_call(call: &CallExpression, scoping: &Scoping) -> Option<ShufflerInfo> {
+        // Callee must be FunctionExpression (possibly parenthesized)
+        let callee = match &call.callee {
+            Expression::ParenthesizedExpression(p) => &p.expression,
+            e => e,
+        };
+        let Expression::FunctionExpression(func) = callee else {
+            return None;
+        };
 
-    Some(ShufflerInfo {
-        array_symbol_id,
-        accessor_symbol_id,
-        code: call_to_code(call),
-    })
+        // Get array symbol from first argument
+        let Argument::Identifier(array_id) = call.arguments.first()? else {
+            return None;
+        };
+        let array_symbol_id = get_reference_symbol(scoping, array_id)?;
+
+        // Validate body and extract accessor symbol
+        let body = func.body.as_ref()?;
+        let mut validator = ShufflerValidator::new(scoping);
+        validator.visit_function_body(body);
+
+        // Validation: push/shift >= 2, parseInt >= 2
+        if validator.push_shift_count < 2 {
+            return None;
+        }
+        if validator.parse_int_count < 2 {
+            return None;
+        }
+
+        // Must have found accessor symbol
+        let accessor_symbol_id = validator.accessor_symbol_id?;
+
+        Some(ShufflerInfo {
+            array_symbol_id,
+            accessor_symbol_id,
+            code: call_to_code(call),
+        })
+    }
 }
 
 // ============================================================================

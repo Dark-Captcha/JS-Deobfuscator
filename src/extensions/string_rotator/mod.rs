@@ -28,15 +28,15 @@
 //! ```
 
 mod call_collector;
+mod call_inliner;
 mod component_collector;
 mod executor;
-mod call_inliner;
 mod shuffler_detector;
 
 pub use call_collector::*;
+pub use call_inliner::*;
 pub use component_collector::*;
 pub use executor::*;
-pub use call_inliner::*;
 pub use shuffler_detector::*;
 
 use oxc::allocator::Allocator;

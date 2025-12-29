@@ -204,7 +204,11 @@ pub fn deobfuscate(source: &str) -> Result<String, DeobError> {
 /// Full deobfuscation with all extensions enabled.
 pub fn deobfuscate_full(source: &str) -> Result<String, DeobError> {
     JSDeobfuscator::new()
-        .extensions([Extension::StringRotator, Extension::ControlFlow, Extension::Proxy])
+        .extensions([
+            Extension::StringRotator,
+            Extension::ControlFlow,
+            Extension::Proxy,
+        ])
         .deobfuscate(source)
 }
 

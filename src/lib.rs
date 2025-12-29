@@ -77,7 +77,7 @@ pub mod utils;
 // ============================================================================
 
 pub use core::{
-    deobfuscate, deobfuscate_full, DeobError, DeobfuscateResult, EcmaConfig, Engine, EngineConfig,
-    EngineResult, Extension, ExtensionsConfig, JSDeobfuscator, LayerConfig, LogLevel, PassError,
-    RuntimeConfig,
+    DeobError, DeobfuscateResult, EcmaConfig, Engine, EngineConfig, EngineResult, Extension,
+    ExtensionsConfig, JSDeobfuscator, LayerConfig, LogLevel, PassError, RuntimeConfig, deobfuscate,
+    deobfuscate_full,
 };

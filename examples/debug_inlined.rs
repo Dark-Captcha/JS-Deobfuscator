@@ -62,17 +62,21 @@ fn main() {
         .into_scoping();
     let mut collector = ComponentCollector::new(all_targets.clone());
     traverse_mut(&mut collector, &allocator, &mut program, scoping, ());
-    
+
     println!("Collected {} function(s):", collector.results.len());
     for (sym, func_info) in &collector.results {
-        println!("  {:?}: {}...", sym, &func_info.code[..func_info.code.len().min(50)]);
+        println!(
+            "  {:?}: {}...",
+            sym,
+            &func_info.code[..func_info.code.len().min(50)]
+        );
     }
     println!();
 
     // Phase 3-5: For each system
     for (id, info) in &detector.results {
         println!("--- System {} Processing ---", id);
-        
+
         // Phase 3: Collect calls
         let scoping = SemanticBuilder::new()
             .build(&program)

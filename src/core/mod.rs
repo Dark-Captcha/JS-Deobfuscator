@@ -39,7 +39,9 @@ mod traits;
 pub use config::{
     EcmaConfig, EngineConfig, ExtensionsConfig, LayerConfig, LogLevel, RuntimeConfig,
 };
-pub use deobfuscator::{deobfuscate, deobfuscate_full, DeobfuscateResult, Extension, JSDeobfuscator};
+pub use deobfuscator::{
+    DeobfuscateResult, Extension, JSDeobfuscator, deobfuscate, deobfuscate_full,
+};
 pub use engine::{Engine, EngineResult};
 pub use error::{DeobError, PassError};
 pub use traits::{LayerTransformer, Pass, PassGroup};

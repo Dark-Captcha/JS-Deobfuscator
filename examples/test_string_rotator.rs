@@ -22,6 +22,7 @@ fn main() {
         .deobfuscate_with_result(&source)
         .expect("Deobfuscation failed");
 
+    println!("Systems detected: {}", result.iterations); // This is wrong, need to expose systems count
     println!("Iterations: {}", result.iterations);
     println!("Modifications: {}", result.modifications);
     println!("Converged: {}\n", result.converged);
