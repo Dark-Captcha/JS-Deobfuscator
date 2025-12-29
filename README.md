@@ -20,7 +20,63 @@ js-deobfuscator = "0.1.0"
 
 ## Quick Start
 
-### Basic Deobfuscation
+### Simple API (Recommended)
+
+```rust
+use js_deobfuscator::{JSDeobfuscator, Extension};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = std::fs::read_to_string("obfuscated.js")?;
+    
+    // Standard deobfuscation (ECMA + Runtime)
+    let output = JSDeobfuscator::new()
+        .deobfuscate(&source)?;
+    
+    // With string rotator extension
+    let output = JSDeobfuscator::new()
+        .ecma(true)
+        .runtime(true)
+        .extensions([Extension::StringRotator])
+        .deobfuscate(&source)?;
+    
+    std::fs::write("clean.js", output)?;
+    Ok(())
+}
+```
+
+### One-liner Functions
+
+```rust
+use js_deobfuscator::{deobfuscate, deobfuscate_full};
+
+// Standard (ECMA + Runtime)
+let output = deobfuscate("var a = 1 + 2;")?;
+
+// Full (all extensions enabled)
+let output = deobfuscate_full(&obfuscated_source)?;
+```
+
+### With Result Details
+
+```rust
+use js_deobfuscator::{JSDeobfuscator, Extension};
+
+let result = JSDeobfuscator::new()
+    .ecma(true)
+    .runtime(true)
+    .extensions([Extension::StringRotator])
+    .max_iterations(50)
+    .deobfuscate_with_result(&source)?;
+
+println!("Iterations: {}", result.iterations);
+println!("Modifications: {}", result.modifications);
+println!("Converged: {}", result.converged);
+println!("{}", result.code);
+```
+
+### Low-Level Engine API
+
+For advanced use cases with full control:
 
 ```rust
 use js_deobfuscator::{Engine, EngineConfig};
@@ -29,128 +85,33 @@ use oxc::codegen::Codegen;
 use oxc::parser::Parser;
 use oxc::span::SourceType;
 
-fn main() {
-    let source = r#"
-        var a = 1 + 2;
-        var b = "hello" + " world";
-        var c = true ? "yes" : "no";
-    "#;
+let allocator = Allocator::default();
+let mut program = Parser::new(&allocator, &source, SourceType::mjs()).parse().program;
 
-    let allocator = Allocator::default();
-    let mut program = Parser::new(&allocator, source, SourceType::mjs()).parse().program;
-
-    let engine = Engine::with_config(EngineConfig::default().with_max_iterations(50));
-    engine.run(&allocator, &mut program).unwrap();
-
-    let output = Codegen::new().build(&program).code;
-    println!("{}", output);
-    // var a = 3;
-    // var b = "hello world";
-    // var c = "yes";
-}
-```
-
-### String Rotator (obfuscator.io style)
-
-One-liner API:
-
-```rust
-use js_deobfuscator::extensions::string_rotator::StringRotator;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let source = std::fs::read_to_string("obfuscated.js")?;
-    let output = StringRotator::deobfuscate(&source)?;
-    std::fs::write("clean.js", output)?;
-    Ok(())
-}
-```
-
-With result details:
-
-```rust
-use js_deobfuscator::extensions::string_rotator::StringRotator;
-use oxc::allocator::Allocator;
-use oxc::codegen::Codegen;
-use oxc::parser::Parser;
-use oxc::span::SourceType;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let source = std::fs::read_to_string("obfuscated.js")?;
-    
-    let allocator = Allocator::default();
-    let mut program = Parser::new(&allocator, &source, SourceType::mjs()).parse().program;
-
-    let result = StringRotator::transform(&allocator, &mut program)?;
-    
-    println!("Systems detected: {}", result.systems_detected);
-    println!("Strings decoded: {}", result.strings_decoded);
-    println!("Calls inlined: {}", result.calls_inlined);
-    println!("Functions removed: {}", result.functions_removed);
-
-    let output = Codegen::new().build(&program).code;
-    std::fs::write("clean.js", output)?;
-    Ok(())
-}
-```
-
-### Full Pipeline (Engine with all layers)
-
-The engine runs all layers in a convergence loop:
-1. **Extensions** (string rotator) - decodes obfuscated strings first
-2. **ECMA** (constant folding, dead code) - simplifies expressions
-3. **Runtime** (atob, btoa) - evaluates runtime APIs
-
-```rust
-use js_deobfuscator::{Engine, EngineConfig, LayerConfig, ExtensionsConfig};
-use oxc::allocator::Allocator;
-use oxc::codegen::Codegen;
-use oxc::parser::Parser;
-use oxc::span::SourceType;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let source = std::fs::read_to_string("obfuscated.js")?;
-    
-    let allocator = Allocator::default();
-    let mut program = Parser::new(&allocator, &source, SourceType::mjs()).parse().program;
-
-    // Enable all layers including extensions
-    let config = EngineConfig::full();  // or EngineConfig::aggressive() for more iterations
-    let engine = Engine::with_config(config);
-    
-    let result = engine.run(&allocator, &mut program)?;
-    
-    println!("Iterations: {}", result.iterations);
-    println!("Modifications: {}", result.total_modifications);
-    println!("Converged: {}", result.converged);
-
-    let output = Codegen::new().build(&program).code;
-    std::fs::write("clean.js", output)?;
-    Ok(())
-}
-```
-
-### Custom Configuration
-
-```rust
-use js_deobfuscator::{Engine, EngineConfig, LayerConfig, ExtensionsConfig};
-
-// Enable only string rotator, disable other extensions
-let config = EngineConfig::default()
-    .with_max_iterations(50)
-    .with_layers(LayerConfig {
-        ecma: true,
-        runtime: true,
-        extensions: true,
-        extensions_config: ExtensionsConfig {
-            string_array: true,  // Enable string rotator
-            control_flow: false,
-            proxy: false,
-        },
-        ..Default::default()
-    });
-
+let config = EngineConfig::full().with_max_iterations(50);
 let engine = Engine::with_config(config);
+let result = engine.run(&allocator, &mut program)?;
+
+let output = Codegen::new().build(&program).code;
 ```
+
+## Configuration
+
+### Layers
+
+| Layer | Description | Default |
+|-------|-------------|---------|
+| `ecma(true)` | Constant folding, dead code removal | ✅ Enabled |
+| `runtime(true)` | atob, btoa, escape, unescape | ✅ Enabled |
+| `extensions([...])` | Obfuscator-specific patterns | ❌ Disabled |
+
+### Extensions
+
+| Extension | Description |
+|-----------|-------------|
+| `Extension::StringRotator` | obfuscator.io style string arrays |
+| `Extension::ControlFlow` | Control flow deflattening (WIP) |
+| `Extension::Proxy` | Proxy function inlining (WIP) |
 
 ## Architecture
 
@@ -175,22 +136,6 @@ let engine = Engine::with_config(config);
 │  Layer 3: Extensions (Obfuscator patterns)                  │
 │  └── String Rotator: obfuscator.io style string arrays      │
 └─────────────────────────────────────────────────────────────┘
-```
-
-## Examples
-
-```bash
-# Basic deobfuscation
-cargo run --example simple_deob
-
-# Full pipeline demo (all layers)
-cargo run --example full_pipeline
-
-# Deobfuscate a file
-cargo run --example deobfuscate_file -- input.js output.js
-
-# String rotator only (low-level)
-cargo run --example test_string_rotator -- input.js output.js
 ```
 
 ## Supported Transformations
@@ -222,11 +167,13 @@ cargo run --example test_string_rotator -- input.js output.js
 |---------|-------------|
 | String Rotator | Decodes obfuscator.io style string arrays with shuffler IIFE |
 
-## CLI (Coming Soon)
+## Examples
 
 ```bash
-js-deobfuscator input.js -o output.js
-js-deobfuscator input.js --string-rotator -o output.js
+# Run examples
+cargo run --example test_string_rotator -- input.js
+cargo run --example full_pipeline
+cargo run --example simple_deob
 ```
 
 ## License

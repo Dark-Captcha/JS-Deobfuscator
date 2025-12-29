@@ -30,13 +30,13 @@
 mod call_collector;
 mod component_collector;
 mod executor;
-mod inliner;
+mod call_inliner;
 mod shuffler_detector;
 
 pub use call_collector::*;
 pub use component_collector::*;
 pub use executor::*;
-pub use inliner::*;
+pub use call_inliner::*;
 pub use shuffler_detector::*;
 
 use oxc::allocator::Allocator;

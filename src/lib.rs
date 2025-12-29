@@ -12,29 +12,49 @@
 //!
 //! # Quick Start
 //!
+//! ## Simple API (Recommended)
+//!
 //! ```ignore
-//! use js_deobfuscator::{Engine, EngineConfig};
-//! use oxc::allocator::Allocator;
-//! use oxc::codegen::Codegen;
-//! use oxc::parser::Parser;
-//! use oxc::span::SourceType;
+//! use js_deobfuscator::{JSDeobfuscator, Extension};
 //!
-//! let source = r#"var a = 1 + 2; var b = "hello" + " world";"#;
+//! // Standard deobfuscation (ECMA + Runtime)
+//! let output = JSDeobfuscator::new()
+//!     .deobfuscate("var a = 1 + 2;")?;
 //!
-//! let allocator = Allocator::default();
-//! let mut program = Parser::new(&allocator, source, SourceType::mjs()).parse().program;
+//! // With string rotator extension
+//! let output = JSDeobfuscator::new()
+//!     .ecma(true)
+//!     .runtime(true)
+//!     .extensions([Extension::StringRotator])
+//!     .deobfuscate(&source)?;
+//! ```
 //!
-//! let engine = Engine::with_config(EngineConfig::default().with_max_iterations(50));
-//! let result = engine.run(&allocator, &mut program).unwrap();
+//! ## One-liner Functions
 //!
-//! let output = Codegen::new().build(&program).code;
-//! // var a = 3;
-//! // var b = "hello world";
+//! ```ignore
+//! use js_deobfuscator::{deobfuscate, deobfuscate_full};
+//!
+//! let output = deobfuscate("var a = 1 + 2;")?;  // ECMA + Runtime
+//! let output = deobfuscate_full(&source)?;       // All extensions
+//! ```
+//!
+//! ## With Result Details
+//!
+//! ```ignore
+//! use js_deobfuscator::{JSDeobfuscator, Extension};
+//!
+//! let result = JSDeobfuscator::new()
+//!     .extensions([Extension::StringRotator])
+//!     .deobfuscate_with_result(&source)?;
+//!
+//! println!("Iterations: {}", result.iterations);
+//! println!("Modifications: {}", result.modifications);
+//! println!("{}", result.code);
 //! ```
 //!
 //! # Modules
 //!
-//! - [`core`] — Engine, configuration, traits
+//! - [`core`] — Engine, configuration, high-level API
 //! - [`ecma`] — Layer 1: ECMAScript standard passes
 //! - [`runtime`] — Layer 2: Runtime API passes
 //! - [`extensions`] — Layer 3: Obfuscator pattern handlers
